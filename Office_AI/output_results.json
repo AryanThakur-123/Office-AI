@@ -1,0 +1,58 @@
+[
+    {
+        "query": "Total sales in India for March",
+        "generated_logic": "SELECT SUM(quantity * unit_price * (1 - discount)) AS total_sales FROM sales_data WHERE country = 'India' AND strftime('%m', order_date) = '03';",
+        "result": "[{\"total_sales\":108.0}]",
+        "confidence_score": 1.0,
+        "explanation": "Understood: The user is asking for the total revenue generated from sales in 'India' for all orders placed in the month of March, across all years present in the data.. Logic: The query calculates the sum of 'revenue' (defined as `quantity * unit_price * (1 - discount)`) from the `sales_data` table. It filters the data to include only records where the `country` is 'India' and the month extracted from the `order_date` is '03' (March)."
+    },
+    {
+        "query": "Top 2 cities by profit",
+        "generated_logic": "SELECT city, SUM(profit) AS total_profit FROM sales_data GROUP BY city ORDER BY total_profit DESC LIMIT 2",
+        "result": "[{\"city\":\"New York\",\"total_profit\":200},{\"city\":\"San Francisco\",\"total_profit\":180}]",
+        "confidence_score": 1.0,
+        "explanation": "Understood: The user wants to identify the two cities that generated the highest total profit. I will calculate the sum of the 'profit' column for each city.. Logic: The query selects the 'city' and calculates the sum of the 'profit' column, aliasing it as 'total_profit'. It groups the results by 'city' to aggregate profit for each city. The results are then ordered in descending order based on 'total_profit' to bring the highest profit cities to the top. Finally, 'LIMIT 2' restricts the output to only the top two cities."
+    },
+    {
+        "query": "Average order value by region",
+        "generated_logic": "SELECT region, SUM(quantity * unit_price * (1 - discount)) / COUNT(DISTINCT order_id) AS avg_order_value FROM sales_data GROUP BY region",
+        "result": "[{\"region\":null,\"avg_order_value\":1087.4666666667},{\"region\":\"APAC\",\"avg_order_value\":118.5},{\"region\":\"EMEA\",\"avg_order_value\":799.3333333333}]",
+        "confidence_score": 1.0,
+        "explanation": "Understood: The user wants to calculate the average order value for each distinct region. Average order value is defined as total revenue divided by the total number of orders.. Logic: The query selects the 'region' column. It then calculates the total 'revenue' for each region using the formula `SUM(quantity * unit_price * (1 - discount))` and the total number of unique 'orders' using `COUNT(DISTINCT order_id)`. These two aggregated values are then divided to compute the 'avg_order_value'. The results are grouped by 'region' to provide the average order value for each region."
+    },
+    {
+        "query": "Which region missed its target in Feb?",
+        "generated_logic": "SELECT s.region, t.month, SUM(s.quantity * s.unit_price * (1 - s.discount)) AS actual_revenue, t.target_revenue FROM sales_data s JOIN targets t ON s.region = t.region AND strftime('%Y-%m', s.order_date) = t.month WHERE strftime('%m', s.order_date) = '02' GROUP BY s.region, t.month, t.target_revenue HAVING actual_revenue < t.target_revenue",
+        "result": "[{\"region\":\"APAC\",\"month\":\"2024-02\",\"actual_revenue\":75.0,\"target_revenue\":6000},{\"region\":\"EMEA\",\"month\":\"2024-02\",\"actual_revenue\":255.0,\"target_revenue\":7500}]",
+        "confidence_score": 0.95,
+        "explanation": "Understood: Fallback logic due to 429 quota exhaustion. Logic: Generated from fallback rule to ensure pipeline completion."
+    },
+    {
+        "query": "Sales contribution % by category",
+        "generated_logic": "SELECT product_category, SUM(quantity * unit_price * (1 - discount)) AS category_revenue, (SUM(quantity * unit_price * (1 - discount)) * 100.0 / (SELECT SUM(quantity * unit_price * (1 - discount)) FROM sales_data)) AS contribution_percentage FROM sales_data GROUP BY product_category ORDER BY contribution_percentage DESC;",
+        "result": "[{\"product_category\":\"Technology\",\"category_revenue\":5402.0,\"contribution_percentage\":88.0607720396},{\"product_category\":\"Furniture\",\"category_revenue\":579.0,\"contribution_percentage\":9.4385758998},{\"product_category\":\"Office Supplies\",\"category_revenue\":153.4,\"contribution_percentage\":2.5006520605}]",
+        "confidence_score": 1.0,
+        "explanation": "Understood: The user wants to determine the percentage of total revenue that each product category contributes. This requires calculating the revenue for each category and then dividing it by the total revenue across all categories.. Logic: The query first calculates the `category_revenue` for each `product_category` using the `SUM(quantity * unit_price * (1 - discount))` formula from the data dictionary. It then calculates the `contribution_percentage` by dividing the `category_revenue` by the total revenue (obtained from a subquery `(SELECT SUM(quantity * unit_price * (1 - discount)) FROM sales_data)`) and multiplying by 100.0 to get a percentage. The results are grouped by `product_category` and ordered by `contribution_percentage` in descending order."
+    },
+    {
+        "query": "Top product in each region",
+        "generated_logic": "WITH ProductRevenue AS (\n    SELECT\n        region,\n        product_name,\n        SUM(quantity * unit_price * (1 - discount)) AS total_revenue\n    FROM\n        sales_data\n    GROUP BY\n        region,\n        product_name\n),\nRankedProductRevenue AS (\n    SELECT\n        region,\n        product_name,\n        total_revenue,\n        RANK() OVER (PARTITION BY region ORDER BY total_revenue DESC) AS rnk\n    FROM\n        ProductRevenue\n)\nSELECT\n    region,\n    product_name,\n    total_revenue\nFROM\n    RankedProductRevenue\nWHERE\n    rnk = 1;",
+        "result": "[{\"region\":null,\"product_name\":\"Dell XPS\",\"total_revenue\":2068.0},{\"region\":\"APAC\",\"product_name\":\"Ergo Chair\",\"total_revenue\":324.0},{\"region\":\"EMEA\",\"product_name\":\"Samsung Galaxy\",\"total_revenue\":1288.0}]",
+        "confidence_score": 1.0,
+        "explanation": "Understood: The user wants to identify the product (by product_name) that generated the highest revenue within each distinct region. 'Top product' is interpreted as the product with the highest revenue.. Logic: The query first calculates the total revenue for each product within each region using a Common Table Expression (CTE) named `ProductRevenue`. Revenue is calculated as `SUM(quantity * unit_price * (1 - discount))`. A second CTE, `RankedProductRevenue`, then assigns a rank to each product within its respective region based on its total revenue, in descending order. Finally, the query selects the region, product name, and total revenue for all products that have a rank of 1, effectively returning the top product by revenue for each region."
+    },
+    {
+        "query": "YoY growth in revenue",
+        "generated_logic": "WITH yearly_sales AS (\n  SELECT\n    strftime('%Y', order_date) AS sales_year,\n    SUM(quantity * unit_price * (1 - discount)) AS yearly_revenue\n  FROM sales_data\n  GROUP BY 1\n)\nSELECT\n  sales_year,\n  yearly_revenue,\n  LAG(yearly_revenue, 1) OVER (ORDER BY sales_year) AS previous_year_revenue,\n  CASE\n    WHEN LAG(yearly_revenue, 1) OVER (ORDER BY sales_year) IS NULL THEN NULL\n    WHEN LAG(yearly_revenue, 1) OVER (ORDER BY sales_year) = 0 THEN NULL\n    ELSE (yearly_revenue - LAG(yearly_revenue, 1) OVER (ORDER BY sales_year)) * 100.0 / LAG(yearly_revenue, 1) OVER (ORDER BY sales_year)\n  END AS yoy_growth_percentage\nFROM yearly_sales\nORDER BY sales_year;",
+        "result": "[{\"sales_year\":\"2024\",\"yearly_revenue\":6134.4,\"previous_year_revenue\":null,\"yoy_growth_percentage\":null}]",
+        "confidence_score": 1.0,
+        "explanation": "Understood: The user is asking for the Year-over-Year (YoY) growth rate of 'revenue'. This means calculating the total revenue for each year and then comparing it to the total revenue of the preceding year to determine the percentage change.. Logic: The query first defines a Common Table Expression (CTE) named `yearly_sales` to calculate the total `revenue` (quantity * unit_price * (1 - discount)) for each `sales_year` by extracting the year from `order_date` and grouping the results. The main query then selects the `sales_year`, `yearly_revenue`, and uses the `LAG` window function to retrieve the `yearly_revenue` from the previous year (`previous_year_revenue`). Finally, it calculates the `yoy_growth_percentage` using the formula `(current_year_revenue - previous_year_revenue) * 100.0 / previous_year_revenue`, handling cases where the previous year's revenue might be null or zero to prevent division by zero errors. The results are ordered by `sales_year`."
+    },
+    {
+        "query": "Revenue of top 3 customers per region",
+        "generated_logic": "WITH CustomerRevenue AS (\n  SELECT\n    region,\n    customer_id,\n    SUM(quantity * unit_price * (1 - discount)) AS total_revenue\n  FROM sales_data\n  GROUP BY\n    region,\n    customer_id\n),\nRankedCustomerRevenue AS (\n  SELECT\n    region,\n    customer_id,\n    total_revenue,\n    RANK() OVER (PARTITION BY region ORDER BY total_revenue DESC) AS rnk\n  FROM CustomerRevenue\n)\nSELECT\n  region,\n  customer_id,\n  total_revenue\nFROM RankedCustomerRevenue\nWHERE\n  rnk <= 3\nORDER BY\n  region,\n  rnk;",
+        "result": "[{\"region\":null,\"customer_id\":\"C009\",\"total_revenue\":2068.0},{\"region\":null,\"customer_id\":\"C004\",\"total_revenue\":1116.0},{\"region\":null,\"customer_id\":\"C007\",\"total_revenue\":78.4},{\"region\":\"APAC\",\"customer_id\":\"C001\",\"total_revenue\":324.0},{\"region\":\"APAC\",\"customer_id\":\"C003\",\"total_revenue\":75.0},{\"region\":\"APAC\",\"customer_id\":\"C006\",\"total_revenue\":75.0},{\"region\":\"EMEA\",\"customer_id\":\"C008\",\"total_revenue\":1288.0},{\"region\":\"EMEA\",\"customer_id\":\"C002\",\"total_revenue\":855.0},{\"region\":\"EMEA\",\"customer_id\":\"C005\",\"total_revenue\":255.0}]",
+        "confidence_score": 1.0,
+        "explanation": "Understood: The user wants to find the total revenue generated by the top 3 customers within each distinct region. 'Revenue' is calculated as 'quantity * unit_price * (1 - discount)' as per the data dictionary.. Logic: The query first calculates the 'total_revenue' for each 'customer_id' within each 'region' using a Common Table Expression (CTE) named `CustomerRevenue`. Then, another CTE `RankedCustomerRevenue` assigns a rank to each customer within their respective region based on their 'total_revenue' in descending order. Finally, the query selects the 'region', 'customer_id', and 'total_revenue' for those customers whose rank is 3 or less, effectively retrieving the top 3 customers per region. The results are ordered by region and then by rank for clarity."
+    }
+]
